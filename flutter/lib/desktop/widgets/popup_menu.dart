@@ -38,18 +38,16 @@ class PopupMenuChildrenItem<T> extends mod_menu.PopupMenuEntry<T> {
 
   @override
   MyPopupMenuItemState<T, PopupMenuChildrenItem<T>> createState() =>
-      MyPopupMenuItemState<T, PopupMenuChildrenItem<T>>();
+      MyPopupMenuItemState<T, PopupMenuChildrenItem<T>>(enabled?.value);
 }
 
 class MyPopupMenuItemState<T, W extends PopupMenuChildrenItem<T>>
     extends State<W> {
   RxBool enabled = true.obs;
 
-  @override
-  void initState() {
-    super.initState();
-    if (widget.enabled != null) {
-      enabled.value = widget.enabled!.value;
+  MyPopupMenuItemState(bool? e) {
+    if (e != null) {
+      enabled.value = e;
     }
   }
 
@@ -65,7 +63,7 @@ class MyPopupMenuItemState<T, W extends PopupMenuChildrenItem<T>>
     final PopupMenuThemeData popupMenuTheme = PopupMenuTheme.of(context);
     TextStyle style = widget.textStyle ??
         popupMenuTheme.textStyle ??
-        theme.textTheme.subtitle1!;
+        theme.textTheme.titleMedium!;
     return Obx(() => mod_menu.PopupMenuButton<T>(
           enabled: enabled.value,
           position: widget.position,
@@ -109,13 +107,17 @@ class MenuConfig {
       this.boxWidth});
 }
 
+typedef DismissCallback = Function();
+
 abstract class MenuEntryBase<T> {
   bool dismissOnClicked;
+  DismissCallback? dismissCallback;
   RxBool? enabled;
 
   MenuEntryBase({
     this.dismissOnClicked = false,
     this.enabled,
+    this.dismissCallback,
   });
   List<mod_menu.PopupMenuEntry<T>> build(BuildContext context, MenuConfig conf);
 
@@ -146,12 +148,14 @@ class MenuEntryRadioOption {
   String value;
   bool dismissOnClicked;
   RxBool? enabled;
+  DismissCallback? dismissCallback;
 
   MenuEntryRadioOption({
     required this.text,
     required this.value,
     this.dismissOnClicked = false,
     this.enabled,
+    this.dismissCallback,
   });
 }
 
@@ -177,8 +181,13 @@ class MenuEntryRadios<T> extends MenuEntryBase<T> {
     required this.optionSetter,
     this.padding,
     dismissOnClicked = false,
+    dismissCallback,
     RxBool? enabled,
-  }) : super(dismissOnClicked: dismissOnClicked, enabled: enabled) {
+  }) : super(
+          dismissOnClicked: dismissOnClicked,
+          enabled: enabled,
+          dismissCallback: dismissCallback,
+        ) {
     () async {
       _curOption.value = await curOptionGetter();
     }();
@@ -249,6 +258,9 @@ class MenuEntryRadios<T> extends MenuEntryBase<T> {
     onPressed() {
       if (opt.dismissOnClicked && Navigator.canPop(context)) {
         Navigator.pop(context);
+        if (opt.dismissCallback != null) {
+          opt.dismissCallback!();
+        }
       }
       setOption(opt.value);
     }
@@ -360,6 +372,9 @@ class MenuEntrySubRadios<T> extends MenuEntryBase<T> {
             onPressed: () {
               if (opt.dismissOnClicked && Navigator.canPop(context)) {
                 Navigator.pop(context);
+                if (opt.dismissCallback != null) {
+                  opt.dismissCallback!();
+                }
               }
               setOption(opt.value);
             },
@@ -421,10 +436,24 @@ abstract class MenuEntrySwitchBase<T> extends MenuEntryBase<T> {
     this.textStyle,
     this.padding,
     RxBool? enabled,
-  }) : super(dismissOnClicked: dismissOnClicked, enabled: enabled);
+    dismissCallback,
+  }) : super(
+          dismissOnClicked: dismissOnClicked,
+          enabled: enabled,
+          dismissCallback: dismissCallback,
+        );
+
+  bool get isEnabled => enabled?.value ?? true;
 
   RxBool get curOption;
   Future<void> setOption(bool? option);
+
+  tryPop(BuildContext context) {
+    if (dismissOnClicked && Navigator.canPop(context)) {
+      Navigator.pop(context);
+      super.dismissCallback?.call();
+    }
+  }
 
   @override
   List<mod_menu.PopupMenuEntry<T>> build(
@@ -459,35 +488,33 @@ abstract class MenuEntrySwitchBase<T> extends MenuEntryBase<T> {
                             if (switchType == SwitchType.sswitch) {
                               return Switch(
                                 value: curOption.value,
-                                onChanged: (v) {
-                                  if (super.dismissOnClicked &&
-                                      Navigator.canPop(context)) {
-                                    Navigator.pop(context);
-                                  }
-                                  setOption(v);
-                                },
+                                onChanged: isEnabled
+                                    ? (v) {
+                                        tryPop(context);
+                                        setOption(v);
+                                      }
+                                    : null,
                               );
                             } else {
                               return Checkbox(
                                 value: curOption.value,
-                                onChanged: (v) {
-                                  if (super.dismissOnClicked &&
-                                      Navigator.canPop(context)) {
-                                    Navigator.pop(context);
-                                  }
-                                  setOption(v);
-                                },
+                                onChanged: isEnabled
+                                    ? (v) {
+                                        tryPop(context);
+                                        setOption(v);
+                                      }
+                                    : null,
                               );
                             }
                           })),
                     ))
                   ])),
-              onPressed: () {
-                if (super.dismissOnClicked && Navigator.canPop(context)) {
-                  Navigator.pop(context);
-                }
-                setOption(!curOption.value);
-              },
+              onPressed: isEnabled
+                  ? () {
+                      tryPop(context);
+                      setOption(!curOption.value);
+                    }
+                  : null,
             )),
       )
     ];
@@ -508,6 +535,7 @@ class MenuEntrySwitch<T> extends MenuEntrySwitchBase<T> {
     EdgeInsets? padding,
     dismissOnClicked = false,
     RxBool? enabled,
+    dismissCallback,
   }) : super(
           switchType: switchType,
           text: text,
@@ -515,6 +543,7 @@ class MenuEntrySwitch<T> extends MenuEntrySwitchBase<T> {
           padding: padding,
           dismissOnClicked: dismissOnClicked,
           enabled: enabled,
+          dismissCallback: dismissCallback,
         ) {
     () async {
       _curOption.value = await getter();
@@ -530,6 +559,47 @@ class MenuEntrySwitch<T> extends MenuEntrySwitchBase<T> {
       final opt = await getter();
       if (_curOption.value != opt) {
         _curOption.value = opt;
+      }
+    }
+  }
+}
+
+// Compatible with MenuEntrySwitch, it uses value instead of getter
+class MenuEntrySwitchSync<T> extends MenuEntrySwitchBase<T> {
+  final SwitchSetter setter;
+  final RxBool _curOption = false.obs;
+
+  MenuEntrySwitchSync({
+    required SwitchType switchType,
+    required String text,
+    required bool currentValue,
+    required this.setter,
+    Rx<TextStyle>? textStyle,
+    EdgeInsets? padding,
+    dismissOnClicked = false,
+    RxBool? enabled,
+    dismissCallback,
+  }) : super(
+          switchType: switchType,
+          text: text,
+          textStyle: textStyle,
+          padding: padding,
+          dismissOnClicked: dismissOnClicked,
+          enabled: enabled,
+          dismissCallback: dismissCallback,
+        ) {
+    _curOption.value = currentValue;
+  }
+
+  @override
+  RxBool get curOption => _curOption;
+  @override
+  setOption(bool? option) async {
+    if (option != null) {
+      await setter(option);
+      // Notice: no ensure with getter, best used on menus that are destroyed on click
+      if (_curOption.value != option) {
+        _curOption.value = option;
       }
     }
   }
@@ -551,12 +621,15 @@ class MenuEntrySwitch2<T> extends MenuEntrySwitchBase<T> {
     EdgeInsets? padding,
     dismissOnClicked = false,
     RxBool? enabled,
+    dismissCallback,
   }) : super(
-            switchType: switchType,
-            text: text,
-            textStyle: textStyle,
-            padding: padding,
-            dismissOnClicked: dismissOnClicked);
+          switchType: switchType,
+          text: text,
+          textStyle: textStyle,
+          padding: padding,
+          dismissOnClicked: dismissOnClicked,
+          dismissCallback: dismissCallback,
+        );
 
   @override
   RxBool get curOption => getter();
@@ -627,9 +700,11 @@ class MenuEntryButton<T> extends MenuEntryBase<T> {
     this.padding,
     dismissOnClicked = false,
     RxBool? enabled,
+    dismissCallback,
   }) : super(
           dismissOnClicked: dismissOnClicked,
           enabled: enabled,
+          dismissCallback: dismissCallback,
         );
 
   Widget _buildChild(BuildContext context, MenuConfig conf) {
@@ -641,6 +716,9 @@ class MenuEntryButton<T> extends MenuEntryBase<T> {
               ? () {
                   if (super.dismissOnClicked && Navigator.canPop(context)) {
                     Navigator.pop(context);
+                    if (super.dismissCallback != null) {
+                      super.dismissCallback!();
+                    }
                   }
                   proc();
                 }

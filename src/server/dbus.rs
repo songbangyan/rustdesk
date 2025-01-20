@@ -5,10 +5,10 @@
 /// [Flutter]: handle uni links for linux
 use dbus::blocking::Connection;
 use dbus_crossroads::{Crossroads, IfaceBuilder};
-use hbb_common::{log};
-use std::{error::Error, fmt, time::Duration};
+use hbb_common::log;
 #[cfg(feature = "flutter")]
 use std::collections::HashMap;
+use std::{error::Error, fmt, time::Duration};
 
 const DBUS_NAME: &str = "org.rustdesk.rustdesk";
 const DBUS_PREFIX: &str = "/dbus";
@@ -30,15 +30,17 @@ impl fmt::Display for DbusError {
 impl Error for DbusError {}
 
 /// invoke new connection from dbus
-/// 
+///
 /// [Tips]:
 /// How to test by CLI:
 /// - use dbus-send command:
 /// `dbus-send --session --print-reply --dest=org.rustdesk.rustdesk /dbus org.rustdesk.rustdesk.NewConnection string:'PEER_ID'`
-pub fn invoke_new_connection(peer_id: String) -> Result<(), Box<dyn Error>> {
+pub fn invoke_new_connection(uni_links: String) -> Result<(), Box<dyn Error>> {
+    log::info!("Starting dbus service for uni");
     let conn = Connection::new_session()?;
     let proxy = conn.with_proxy(DBUS_NAME, DBUS_PREFIX, DBUS_TIMEOUT);
-    let (ret,): (String,) = proxy.method_call(DBUS_NAME, DBUS_METHOD_NEW_CONNECTION, (peer_id,))?;
+    let (ret,): (String,) =
+        proxy.method_call(DBUS_NAME, DBUS_METHOD_NEW_CONNECTION, (uni_links,))?;
     if ret != DBUS_METHOD_RETURN_SUCCESS {
         log::error!("error on call new connection to dbus server");
         return Err(Box::new(DbusError("not success".to_string())));
@@ -67,25 +69,21 @@ fn handle_client_message(builder: &mut IfaceBuilder<()>) {
         DBUS_METHOD_NEW_CONNECTION,
         (DBUS_METHOD_NEW_CONNECTION_ID,),
         (DBUS_METHOD_RETURN,),
-        move |_, _, (_peer_id,): (String,)| {
+        move |_, _, (_uni_links,): (String,)| {
             #[cfg(feature = "flutter")]
             {
-                use crate::flutter::{self, APP_TYPE_MAIN};
-
-                if let Some(stream) = flutter::GLOBAL_EVENT_STREAM
-                    .write()
-                    .unwrap()
-                    .get(APP_TYPE_MAIN)
-                {
-                    let data = HashMap::from([
-                        ("name", "new_connection"),
-                        ("peer_id", _peer_id.as_str())
-                    ]);
-                    if !stream.add(serde_json::ser::to_string(&data).unwrap_or("".to_string())) {
-                        log::error!("failed to add dbus message to flutter global dbus stream.");
+                use crate::flutter;
+                let data = HashMap::from([
+                    ("name", "on_url_scheme_received"),
+                    ("url", _uni_links.as_str()),
+                ]);
+                let event = serde_json::ser::to_string(&data).unwrap_or("".to_string());
+                match crate::flutter::push_global_event(flutter::APP_TYPE_MAIN, event) {
+                    None => log::error!("failed to find main event stream"),
+                    Some(false) => {
+                        log::error!("failed to add dbus message to flutter global dbus stream.")
                     }
-                } else {
-                    log::error!("failed to find main event stream");
+                    Some(true) => {}
                 }
             }
             return Ok((DBUS_METHOD_RETURN_SUCCESS.to_string(),));

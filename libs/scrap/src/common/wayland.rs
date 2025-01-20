@@ -1,10 +1,13 @@
-use crate::common::{x11::Frame, TraitCapturer};
-use crate::wayland::{capturable::*, *};
+use crate::{
+    wayland::{capturable::*, *},
+    Frame, TraitCapturer,
+};
 use std::{io, sync::RwLock, time::Duration};
 
-pub struct Capturer(Display, Box<dyn Recorder>, bool, Vec<u8>);
+use super::x11::PixelBuffer;
 
-pub const IS_CURSOR_EMBEDDED: bool = true;
+pub struct Capturer(Display, Box<dyn Recorder>, Vec<u8>);
+
 
 lazy_static::lazy_static! {
     static ref MAP_ERR: RwLock<Option<fn(err: String)-> io::Error>> = Default::default();
@@ -23,9 +26,9 @@ fn map_err<E: ToString>(err: E) -> io::Error {
 }
 
 impl Capturer {
-    pub fn new(display: Display, yuv: bool) -> io::Result<Capturer> {
+    pub fn new(display: Display) -> io::Result<Capturer> {
         let r = display.0.recorder(false).map_err(map_err)?;
-        Ok(Capturer(display, r, yuv, Default::default()))
+        Ok(Capturer(display, r, Default::default()))
     }
 
     pub fn width(&self) -> usize {
@@ -38,24 +41,20 @@ impl Capturer {
 }
 
 impl TraitCapturer for Capturer {
-    fn set_use_yuv(&mut self, use_yuv: bool) {
-        self.2 = use_yuv;
-    }
-
     fn frame<'a>(&'a mut self, timeout: Duration) -> io::Result<Frame<'a>> {
         match self.1.capture(timeout.as_millis() as _).map_err(map_err)? {
-            PixelProvider::BGR0(w, h, x) => Ok(Frame(if self.2 {
-                crate::common::bgra_to_i420(w as _, h as _, &x, &mut self.3);
-                &self.3[..]
-            } else {
-                x
-            })),
-            PixelProvider::RGB0(w, h, x) => Ok(Frame(if self.2 {
-                crate::common::rgba_to_i420(w as _, h as _, &x, &mut self.3);
-                &self.3[..]
-            } else {
-                x
-            })),
+            PixelProvider::BGR0(w, h, x) => Ok(Frame::PixelBuffer(PixelBuffer::new(
+                x,
+                crate::Pixfmt::BGRA,
+                w,
+                h,
+            ))),
+            PixelProvider::RGB0(w, h, x) => Ok(Frame::PixelBuffer(PixelBuffer::new(
+                x,
+                crate::Pixfmt::RGBA,
+                w,
+                h,
+            ))),
             PixelProvider::NONE => Err(std::io::ErrorKind::WouldBlock.into()),
             _ => Err(map_err("Invalid data")),
         }
@@ -74,7 +73,7 @@ impl Display {
     }
 
     pub fn all() -> io::Result<Vec<Display>> {
-        Ok(pipewire::get_capturables(true)
+        Ok(pipewire::get_capturables()
             .map_err(map_err)?
             .drain(..)
             .map(|x| Display(x))

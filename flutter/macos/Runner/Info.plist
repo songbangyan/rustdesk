@@ -7,7 +7,7 @@
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIconFile</key>
-	<string></string>
+	<string>AppIcon.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -23,8 +23,10 @@
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
-			<key>CFBundleURLName</key>
+			<key>CFBundleURLIconFile</key>
 			<string></string>
+			<key>CFBundleURLName</key>
+			<string>com.carriez.rustdesk</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>rustdesk</string>
@@ -39,9 +41,11 @@
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Record the sound from microphone for the purpose of the remote desktop.</string>
 	<key>NSPrincipalClass</key>
-  <string>NSApplication</string>
-  <key>LSUIElement</key>
-  <string>1</string>
+	<string>NSApplication</string>
+    <key>LSUIElement</key>
+    <string>1</string>
 </dict>
 </plist>

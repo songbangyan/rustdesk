@@ -1,25 +1,33 @@
-// Specify the Windows subsystem to eliminate console window.
-// Requires Rust 1.18.
-//#![windows_subsystem = "windows"]
+#![cfg_attr(
+    all(not(debug_assertions), target_os = "windows"),
+    windows_subsystem = "windows"
+)]
 
 use librustdesk::*;
 
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(any(target_os = "android", target_os = "ios", feature = "flutter"))]
 fn main() {
     if !common::global_init() {
         return;
     }
     common::test_rendezvous_server();
     common::test_nat_type();
-    #[cfg(target_os = "android")]
-    crate::common::check_software_update();
     common::global_clean();
 }
 
-#[cfg(not(any(target_os = "android", target_os = "ios", feature = "cli")))]
+#[cfg(not(any(
+    target_os = "android",
+    target_os = "ios",
+    feature = "cli",
+    feature = "flutter"
+)))]
 fn main() {
     if !common::global_init() {
         return;
+    }
+    #[cfg(all(windows, not(feature = "inline")))]
+    unsafe {
+        winapi::um::shellscalingapi::SetProcessDpiAwareness(2);
     }
     if let Some(args) = crate::core_main::core_main().as_mut() {
         ui::start(args);
@@ -42,7 +50,7 @@ fn main() {
     );
     let matches = App::new("rustdesk")
         .version(crate::VERSION)
-        .author("CarrieZ Studio<info@rustdesk.com>")
+        .author("Purslane Ltd<info@rustdesk.com>")
         .about("RustDesk command line tool")
         .args_from_usage(&args)
         .get_matches();
@@ -92,7 +100,7 @@ fn main() {
         cli::connect_test(p, key, token);
     } else if let Some(p) = matches.value_of("server") {
         log::info!("id={}", hbb_common::config::Config::get_id());
-        crate::start_server(true);
+        crate::start_server(true, false);
     }
     common::global_clean();
 }

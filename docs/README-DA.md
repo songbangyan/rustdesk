@@ -5,7 +5,7 @@
   <a href="#sådan-bygger-du-med-docker">Docker</a> •
   <a href="#filstruktur">Filstruktur</a> •
   <a href="#skærmbilleder">Skærmbilleder</a><br>
-  [<a href="../README.md">English</a>] | [<a href="README-UA.md">Українська</a>] | [<a href="README-CS.md">česky</a>] | [<a href="README-ZH.md">中文</a>] | [<a href="README-HU.md">Magyar</a>] | [<a href="README-ES.md">Español</a>] | [<a href="README-FA.md">فارسی</a>] | [<a href="README-FR.md">Français</a>] | [<a href="README-DE.md">Deutsch</a>] | [<a href="README-PL.md">Polski</a>] | [<a href="README-ID.md">Indonesian</a>] | [<a href="README-FI.md">Suomi</a>] | [<a href="README-ML.md">മലയാളം</a>] | [<a href="README-JP.md">日本語</a>] | [<a href="README-NL.md">Nederlands</a>] | [<a href="README-IT.md">Italiano</a>] | [<a href="README-RU.md">Русский</a>] | [<a href="README-PTBR.md">Português (Brasil)</a>] | [<a href="README-EO.md">Esperanto</a>] | [<a href="README-KR.md">한국어</a>] | [<a href="README-AR.md">العربي</a>] | [<a href="README-VN.md">Tiếng Việt</a>]<br>
+  [<a href="../README.md">English</a>] | [<a href="README-UA.md">Українська</a>] | [<a href="README-CS.md">česky</a>] | [<a href="README-ZH.md">中文</a>] | [<a href="README-HU.md">Magyar</a>] | [<a href="README-ES.md">Español</a>] | [<a href="README-FA.md">فارسی</a>] | [<a href="README-FR.md">Français</a>] | [<a href="README-DE.md">Deutsch</a>] | [<a href="README-PL.md">Polski</a>] | [<a href="README-ID.md">Indonesian</a>] | [<a href="README-FI.md">Suomi</a>] | [<a href="README-ML.md">മലയാളം</a>] | [<a href="README-JP.md">日本語</a>] | [<a href="README-NL.md">Nederlands</a>] | [<a href="README-IT.md">Italiano</a>] | [<a href="README-RU.md">Русский</a>] | [<a href="README-PTBR.md">Português (Brasil)</a>] | [<a href="README-EO.md">Esperanto</a>] | [<a href="README-KR.md">한국어</a>] | [<a href="README-AR.md">العربي</a>] | [<a href="README-VN.md">Tiếng Việt</a>] | [<a href="README-GR.md">Ελληνικά</a>]<br>
   <b>Vi har brug for din hjælp til at oversætte denne README, <a href="https://github.com/rustdesk/rustdesk/tree/master/src/lang">RustDesk UI</a> og <a href=" https://github.com/rustdesk/doc.rustdesk.com">Dokument</a> til dit modersmål</b>
 </p>
 
@@ -18,18 +18,6 @@ Endnu en fjernskrivebordssoftware, skrevet i Rust. Fungerer ud af æsken, ingen 
 RustDesk hilser bidrag fra alle velkommen. Se [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) for at få hjælp til at komme i gang.
 
 [**PROGRAM DOWNLOAD**](https://github.com/rustdesk/rustdesk/releases)
-
-## Gratis offentlige servere
-
-Nedenfor er de servere, du bruger gratis, det kan ændre sig med tiden. Hvis du ikke er tæt på en af disse, kan dit netværk være langsomt.
-
-| Beliggenhed | Udbyder | Specifikation |
-| ---------- | ------------- | ------------------ |
-| Seoul | AWS lightsail | 1 vCPU / 0.5GB RAM |
-| Germany | Hetzner | 2 vCPU / 4GB RAM |
-| Germany | Codext | 4 vCPU / 8GB RAM |
-| Finland (Helsinki) | 0x101 Cyber Security | 4 vCPU / 8GB RAM |
-| USA (Ashburn) | 0x101 Cyber Security | 4 vCPU / 8GB RAM |
 
 ## Afhængigheder
 
@@ -47,8 +35,8 @@ Hent venligst sciter dynamic library selv.
 
 - Installer [vcpkg](https://github.com/microsoft/vcpkg), og indstil env-variabelen "VCPKG_ROOT" korrekt
 
-  - Windows: vcpkg install libvpx:x64-windows-static libyuv:x64-windows-static opus:x64-windows-static
-  - Linux/MacOS: vcpkg install libvpx libyuv opus
+  - Windows: vcpkg install libvpx:x64-windows-static libyuv:x64-windows-static opus:x64-windows-static aom:x64-windows-static
+  - Linux/MacOS: vcpkg install libvpx libyuv opus aom
 
 - kør `cargo run`
 
@@ -79,11 +67,11 @@ sudo pacman -Syu --needed unzip git cmake gcc curl wget yasm nasm zip make pkg-c
 ```sh
 git clone https://github.com/microsoft/vcpkg
 cd vcpkg
-git checkout 2021.12.01
+git checkout 2023.04.15
 cd ..
 vcpkg/bootstrap-vcpkg.sh
 export VCPKG_ROOT=$HOME/vcpkg
-vcpkg/vcpkg install libvpx libyuv opus
+vcpkg/vcpkg install libvpx libyuv opus aom
 ```
 
 ### libvpx rettelse (For Fedora)
@@ -112,33 +100,6 @@ mv libsciter-gtk.so target/debug
 cargo run
 ```
 
-### Skift Wayland til X11 (Xorg)
-
-RustDesk understøtter ikke Wayland. Tjek [dette](https://docs.fedoraproject.org/en-US/quick-docs/configuring-xorg-as-default-gnome-session/) for at konfigurere Xorg som standard GNOME-session.
-
-## Wayland-support
-
-Wayland ser ikke ud til at levere nogen API til at sende tastetryk til andre vinduer. Derfor bruger rustdesk et API fra et lavere niveau, nemlig `/dev/uinput`-enheden (Linux-kerneniveau).
-
-Når wayland er den kontrollerede side, skal du starte på følgende måde:
-```bash
-# Start uinput service
-$ sudo rustdesk --service
-$ rustdesk
-```
-**Bemærk**: Wayland-skærmoptagelse bruger forskellige grænseflader. RustDesk understøtter i øjeblikket kun org.freedesktop.portal.ScreenCast.
-```bash
-$ dbus-send --session --print-reply       \
-  --dest=org.freedesktop.portal.Desktop \
-  /org/freedesktop/portal/desktop       \
-  org.freedesktop.DBus.Properties.Get   \
-  string:org.freedesktop.portal.ScreenCast string:version
-# Not support
-Error org.freedesktop.DBus.Error.InvalidArgs: No such interface “org.freedesktop.portal.ScreenCast”
-# Support
-method return time=1662544486.931020 sender=:1.54 -> destination=:1.139 serial=257 reply_serial=2
-   variant       uint32 4
-```
 ## Sådan bygger du med Docker
 
 ```sh
